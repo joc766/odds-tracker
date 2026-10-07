@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Review and select available sports bets." />
+    <title>Odds Desk</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <a class="brand" href="./">ODDS<span>/</span>DESK</a>
+        <div class="connection-status"><span class="status-dot"></span><span id="last-updated">Not loaded</span></div>
+      </header>
+
+      <section class="hero">
+        <p class="eyebrow">ESPN / LIVE ODDS BOARD</p>
+        <h1>Build your<br /><em>card.</em></h1>
+        <p class="intro">Review the latest markets, mark the bets you want to track, and save them when the database connection is ready.</p>
+      </section>
+
+      <section class="controls" aria-label="Odds filters">
+        <label>
+          <span>League</span>
+          <select id="league-select">
+            <option value="football/nfl">NFL</option>
+          </select>
+        </label>
+        <label>
+          <span>Current NFL week</span>
+          <output class="week-display" id="week-range">Loading week...</output>
+        </label>
+        <button class="button button-primary" id="refresh-button" type="button">Refresh odds <span aria-hidden="true">↗</span></button>
+      </section>
+
+      <section class="summary-row" aria-live="polite">
+        <div><strong id="market-count">—</strong><span>available markets</span></div>
+        <div><strong id="selected-count">0</strong><span>selected bets</span></div>
+        <button class="clear-button" id="clear-button" type="button">Clear selection</button>
+      </section>
+
+      <div id="alert" class="alert" role="alert" hidden></div>
+
+      <section class="games-list" id="bets-body" aria-label="Available bets">
+        <div class="placeholder-row"><span class="loader"></span> Loading current markets...</div>
+      </section>
+
+      <section class="selected-section">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">YOUR CARD</p>
+            <h2>Selected bets</h2>
+          </div>
+          <div class="parlay-total"><span>Parlay odds</span><strong id="parlay-odds">—</strong></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Game</th><th>Market</th><th>Pick</th><th>Odds</th><th class="remove-column">Action</th></tr>
+            </thead>
+            <tbody id="selected-body">
+              <tr class="placeholder-row"><td colspan="5">Select bets above to build your card.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <footer class="action-bar">
+        <div>
+          <span class="action-label">Ready to track?</span>
+          <span class="action-note">Selections stay in this browser for now.</span>
+        </div>
+        <button class="button button-save" id="save-button" type="button" disabled>Save selected bets <span aria-hidden="true">→</span></button>
+      </footer>
+    </main>
+    <script src="app.js" defer></script>
+  </body>
+</html>
