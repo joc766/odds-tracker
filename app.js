@@ -137,7 +137,7 @@ function renderSelectedMarkets() {
   elements.selectedCount.textContent = selectedMarkets.length;
   elements.save.disabled = selectedMarkets.length === 0;
   if (!selectedMarkets.length) {
-    elements.selectedBody.innerHTML = `<tr class="placeholder-row"><td colspan="5">Select bets above to build your card.</td></tr>`;
+    elements.selectedBody.innerHTML = `<tr class="placeholder-row"><td colspan="5">No bets selected.</td></tr>`;
     elements.parlayOdds.textContent = "—";
     return;
   }
@@ -222,7 +222,7 @@ async function loadOdds() {
     elements.dot.classList.remove("live");
   } finally {
     elements.refresh.disabled = false;
-    elements.refresh.innerHTML = 'Refresh odds <span aria-hidden="true">↗</span>';
+    elements.refresh.textContent = "Refresh odds";
   }
 }
 
