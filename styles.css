@@ -27,6 +27,16 @@ select, .week-display { min-width: 150px; height: 38px; padding: 8px 10px; borde
 .button:hover:not(:disabled) { background: #edf1ed; }
 .button-primary { color: #fff; border-color: var(--accent); background: var(--accent); }
 .button-primary:hover:not(:disabled) { background: #125234; }
+.custom-section { margin-bottom: 16px; }
+.custom-form { margin-top: 10px; padding: 14px; border: 1px solid var(--border); border-radius: 3px; background: #eef2ef; }
+.custom-form-row, .custom-detail-row { display: flex; align-items: end; gap: 10px; }
+.custom-detail-row { margin-top: 10px; }
+.custom-form-row label { flex: 1; }
+.custom-fields { display: flex; align-items: end; gap: 10px; flex: 2; }
+.custom-fields label { min-width: 100px; }
+.custom-prop-fields { flex: 4; }
+.custom-form input, .custom-form select { width: 100%; height: 38px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 3px; background: var(--surface); color: var(--text); }
+.custom-fields[hidden], .custom-form[hidden] { display: none; }
 .summary-row { display: flex; align-items: center; gap: 24px; padding: 0 0 14px; }
 .summary-row div { display: flex; align-items: baseline; gap: 6px; }
 .summary-row strong { font-size: 18px; font-weight: 600; }
@@ -63,6 +73,8 @@ h2 { margin: 0; font-size: 18px; font-weight: 600; }
 .parlay-total span { display: block; }
 .parlay-total strong { font-size: 18px; }
 .remove-column { width: 90px; }
+.leg-input { width: 100%; min-width: 130px; height: 32px; padding: 5px 7px; border: 1px solid var(--border); border-radius: 3px; background: var(--surface); color: var(--text); }
+.odds-input { width: 100px; min-width: 100px; }
 .remove-bet { padding: 0; border: 0; background: transparent; color: var(--danger); font-size: 12px; text-decoration: underline; }
 .action-bar { display: flex; justify-content: flex-end; align-items: center; gap: 16px; padding-top: 16px; }
 .action-note { color: var(--muted); font-size: 12px; }
@@ -75,6 +87,10 @@ h2 { margin: 0; font-size: 18px; font-weight: 600; }
   label { flex: 1; }
   select, .week-display { width: 100%; min-width: 0; }
   .button-primary { width: 100%; }
+  .custom-form-row, .custom-detail-row { align-items: stretch; flex-direction: column; }
+  .custom-detail-row { margin-top: 10px; }
+  .custom-fields { align-items: stretch; flex-direction: column; }
+  .custom-fields label { min-width: 0; }
   .summary-row { gap: 14px; }
   .summary-row div { display: grid; gap: 0; }
   .section-heading { align-items: flex-start; gap: 10px; flex-direction: column; }

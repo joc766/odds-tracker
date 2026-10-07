@@ -28,6 +28,44 @@
         <button class="button button-primary" id="refresh-button" type="button">Refresh odds</button>
       </section>
 
+      <section class="custom-section">
+        <button class="button" id="custom-toggle" type="button" aria-expanded="false">Add custom bet</button>
+        <form class="custom-form" id="custom-bet-form" hidden>
+          <div class="custom-form-row">
+            <label><span>Game</span><select id="custom-game" required><option value="">Select a game</option></select></label>
+            <label><span>Market</span><select id="custom-type" required>
+              <option value="Alternate spread">Alternate spread</option>
+              <option value="Alternate total">Alternate total</option>
+              <option value="Anytime touchdown">Anytime touchdown</option>
+              <option value="Player prop">Player prop</option>
+            </select></label>
+            <label><span>American odds</span><input id="custom-odds" required placeholder="e.g. -110" /></label>
+            <button class="button button-primary" type="submit">Add to selected</button>
+          </div>
+          <div class="custom-detail-row">
+            <div class="custom-fields" id="alternate-fields">
+              <label><span>Team</span><select id="custom-team"><option value="">Select a team</option></select></label>
+              <label><span>Spread</span><input id="custom-line" type="number" step="1" placeholder="e.g. -7" /></label>
+            </div>
+            <div class="custom-fields" id="alternate-total-fields" hidden>
+              <label><span>Side</span><select id="custom-total-side"><option value="over">Over</option><option value="under">Under</option></select></label>
+              <label><span>Total</span><input id="custom-total-line" type="number" step="0.5" placeholder="e.g. 47.5" /></label>
+            </div>
+            <div class="custom-fields" id="touchdown-fields" hidden>
+              <label><span>Player</span><select id="custom-touchdown-player"><option value="">Select a player</option></select></label>
+              <label><span>Touchdowns</span><select id="custom-touchdown-threshold"><option value="1">1+</option><option value="2">2+</option></select></label>
+            </div>
+            <div class="custom-fields custom-prop-fields" id="prop-fields" hidden>
+              <label><span>Position</span><select id="custom-position"><option value="">Select a position</option></select></label>
+              <label><span>Player</span><select id="custom-player"><option value="">Select a player</option></select></label>
+              <label><span>Stat</span><select id="custom-stat"></select></label>
+              <label><span>Side</span><select id="custom-side"><option value="over">Over</option><option value="under">Under</option></select></label>
+              <label><span>Line</span><input id="custom-prop-line" type="number" step="0.5" placeholder="e.g. 72.5" /></label>
+            </div>
+          </div>
+        </form>
+      </section>
+
       <section class="summary-row" aria-live="polite">
         <div><strong id="market-count">—</strong><span>available markets</span></div>
         <div><strong id="selected-count">0</strong><span>selected bets</span></div>
@@ -50,7 +88,7 @@
         <div class="table-wrap">
           <table>
             <thead>
-              <tr><th>Game</th><th>Market</th><th>Pick</th><th>Odds</th><th class="remove-column">Action</th></tr>
+              <tr><th>Game</th><th>Market</th><th>Bet / line</th><th>American odds</th><th class="remove-column">Action</th></tr>
             </thead>
             <tbody id="selected-body">
               <tr class="placeholder-row"><td colspan="5">No bets selected.</td></tr>

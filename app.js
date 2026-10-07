@@ -1,4 +1,5 @@
 const ESPN_BASE = "https://site.api.espn.com/apis/site/v2/sports";
+const ESPN_ROSTER_BASE = `${ESPN_BASE}/football/nfl/teams`;
 const SLEEPER_STATE_URL = "https://api.sleeper.app/v1/state/nfl";
 const selectionKey = "odds-desk-selection";
 
@@ -14,12 +15,42 @@ const elements = {
   save: document.querySelector("#save-button"),
   updated: document.querySelector("#last-updated"),
   dot: document.querySelector(".status-dot"),
+  customToggle: document.querySelector("#custom-toggle"),
+  customForm: document.querySelector("#custom-bet-form"),
+  customGame: document.querySelector("#custom-game"),
+  customType: document.querySelector("#custom-type"),
+  alternateFields: document.querySelector("#alternate-fields"),
+  customTeam: document.querySelector("#custom-team"),
+  customLine: document.querySelector("#custom-line"),
+  alternateTotalFields: document.querySelector("#alternate-total-fields"),
+  customTotalSide: document.querySelector("#custom-total-side"),
+  customTotalLine: document.querySelector("#custom-total-line"),
+  touchdownFields: document.querySelector("#touchdown-fields"),
+  touchdownPlayer: document.querySelector("#custom-touchdown-player"),
+  touchdownThreshold: document.querySelector("#custom-touchdown-threshold"),
+  propFields: document.querySelector("#prop-fields"),
+  customPosition: document.querySelector("#custom-position"),
+  customPlayer: document.querySelector("#custom-player"),
+  customStat: document.querySelector("#custom-stat"),
+  customSide: document.querySelector("#custom-side"),
+  customPropLine: document.querySelector("#custom-prop-line"),
+  customOdds: document.querySelector("#custom-odds"),
   selectedBody: document.querySelector("#selected-body"),
   parlayOdds: document.querySelector("#parlay-odds")
 };
 
 let selectedBets = new Set(JSON.parse(localStorage.getItem(selectionKey) || "[]"));
+let betOverrides = JSON.parse(localStorage.getItem("odds-desk-overrides") || "{}");
+let customBets = JSON.parse(localStorage.getItem("odds-desk-custom-bets") || "[]").filter((bet) => bet.marketType);
 let currentMarkets = [];
+let currentPlayers = [];
+
+const propStats = {
+  QB: [{ value: "passing_touchdowns", label: "Pass TDs" }, { value: "passing_yards", label: "Pass Yards" }],
+  RB: [{ value: "rushing_yards", label: "Rush Yards" }],
+  WR: [{ value: "receptions", label: "Receptions" }, { value: "receiving_yards", label: "Reception Yards" }],
+  TE: [{ value: "receptions", label: "Receptions" }, { value: "receiving_yards", label: "Reception Yards" }]
+};
 
 function formatDate(date) {
   return date.toISOString().slice(0, 10);
@@ -80,6 +111,7 @@ function addMarket(markets, event, type, pick, odds) {
     eventId: event.id,
     event: event.name,
     shortEvent: event.shortName || event.name,
+    teams: event.teams,
     type,
     pick,
     odds: String(odds),
@@ -98,6 +130,12 @@ function normalizeEvents(data) {
       const away = competitors.find((team) => team.homeAway === "away") || competitors[1];
       const homeName = home?.team?.abbreviation || home?.team?.shortDisplayName || "Home";
       const awayName = away?.team?.abbreviation || away?.team?.shortDisplayName || "Away";
+      event.teams = competitors.map((competitor) => ({
+        id: competitor.team?.id,
+        name: competitor.team?.displayName,
+        abbreviation: competitor.team?.abbreviation,
+        homeAway: competitor.homeAway
+      })).filter((team) => team.id);
       const spread = odds.spread ?? odds.pointSpread?.home?.close?.line;
       if (spread !== undefined) {
         const homeSpread = Number(spread) > 0 ? `+${spread}` : spread;
@@ -119,6 +157,14 @@ function normalizeEvents(data) {
 function showAlert(message) {
   elements.alert.textContent = message;
   elements.alert.hidden = false;
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[character]);
+}
+
+function getBetValue(market, field) {
+  return betOverrides[market.id]?.[field] ?? market[field];
 }
 
 function americanToDecimal(odds) {
@@ -143,25 +189,118 @@ function renderSelectedMarkets() {
   }
 
   elements.selectedBody.innerHTML = selectedMarkets.map((market) => `<tr>
-    <td><span class="event-name">${market.shortEvent}</span><span class="event-meta">${market.event}</span></td>
-    <td><span class="market-type">${market.type}</span></td><td><span class="pick">${market.pick}</span></td>
-    <td><span class="odds">${market.odds}</span></td><td><button class="remove-bet" type="button" data-remove-id="${market.id}">Remove</button></td>
+    <td><span class="event-name">${escapeHtml(market.shortEvent)}</span><span class="event-meta">${escapeHtml(market.event)}</span></td>
+    <td><span class="market-type">${escapeHtml(market.type)}</span></td>
+    <td><span class="pick">${escapeHtml(getBetValue(market, "pick"))}</span></td>
+    <td><input class="leg-input odds-input" data-edit-field="odds" data-edit-id="${escapeHtml(market.id)}" value="${escapeHtml(getBetValue(market, "odds"))}" placeholder="e.g. -110" /></td>
+    <td><button class="remove-bet" type="button" data-remove-id="${escapeHtml(market.id)}">Remove</button></td>
   </tr>`).join("");
 
-  const decimalOdds = selectedMarkets.map((market) => americanToDecimal(market.odds));
+  const decimalOdds = selectedMarkets.map((market) => americanToDecimal(getBetValue(market, "odds")));
   elements.parlayOdds.textContent = decimalOdds.every(Boolean)
     ? decimalToAmerican(decimalOdds.reduce((total, odds) => total * odds, 1))
     : "—";
   elements.selectedBody.querySelectorAll("[data-remove-id]").forEach((button) => button.addEventListener("click", () => {
     selectedBets.delete(button.dataset.removeId);
+    delete betOverrides[button.dataset.removeId];
+    customBets = customBets.filter((market) => market.id !== button.dataset.removeId);
     persistSelection();
-    render(currentMarkets);
+    localStorage.setItem("odds-desk-overrides", JSON.stringify(betOverrides));
+    localStorage.setItem("odds-desk-custom-bets", JSON.stringify(customBets));
+    render(currentMarkets.filter((market) => !market.isCustom));
   }));
+  elements.selectedBody.querySelectorAll("[data-edit-field]").forEach((input) => input.addEventListener("input", () => {
+    const id = input.dataset.editId;
+    betOverrides[id] = { ...betOverrides[id], [input.dataset.editField]: input.value };
+    localStorage.setItem("odds-desk-overrides", JSON.stringify(betOverrides));
+    updateParlayOdds();
+  }));
+}
+
+function updateParlayOdds() {
+  const selectedMarkets = currentMarkets.filter((market) => selectedBets.has(market.id));
+  const decimalOdds = selectedMarkets.map((market) => americanToDecimal(getBetValue(market, "odds")));
+  elements.parlayOdds.textContent = decimalOdds.length && decimalOdds.every(Boolean)
+    ? decimalToAmerican(decimalOdds.reduce((total, odds) => total * odds, 1))
+    : "—";
+}
+
+function updateCustomGameOptions(markets) {
+  const games = [...new Map(markets.map((market) => [market.eventId, market])).values()];
+  const currentValue = elements.customGame.value;
+  elements.customGame.innerHTML = `<option value="">Select a game</option>${games.map((game) => `<option value="${escapeHtml(game.eventId)}">${escapeHtml(game.shortEvent)}</option>`).join("")}`;
+  if (games.some((game) => game.eventId === currentValue)) elements.customGame.value = currentValue;
+  updateCustomFields();
+}
+
+function selectedGame() {
+  return currentMarkets.find((market) => market.eventId === elements.customGame.value && !market.isCustom);
+}
+
+function setRequired(elementsToRequire) {
+  [elements.customTeam, elements.customLine, elements.customTotalSide, elements.customTotalLine, elements.touchdownPlayer, elements.touchdownThreshold, elements.customPosition, elements.customPlayer, elements.customStat, elements.customSide, elements.customPropLine].forEach((element) => element.required = elementsToRequire.includes(element));
+}
+
+function updateCustomFields() {
+  const type = elements.customType.value;
+  elements.alternateFields.hidden = type !== "Alternate spread";
+  elements.alternateTotalFields.hidden = type !== "Alternate total";
+  elements.touchdownFields.hidden = type !== "Anytime touchdown";
+  elements.propFields.hidden = type !== "Player prop";
+  setRequired(type === "Alternate spread"
+    ? [elements.customTeam, elements.customLine]
+    : type === "Alternate total"
+      ? [elements.customTotalSide, elements.customTotalLine]
+    : type === "Anytime touchdown"
+      ? [elements.touchdownPlayer, elements.touchdownThreshold]
+      : [elements.customPosition, elements.customPlayer, elements.customStat, elements.customSide, elements.customPropLine]);
+
+  const game = selectedGame();
+  const teams = game?.teams || [];
+  const currentTeam = elements.customTeam.value;
+  elements.customTeam.innerHTML = `<option value="">Select a team</option>${teams.map((team) => `<option value="${escapeHtml(team.id)}">${escapeHtml(team.name)}</option>`).join("")}`;
+  if (teams.some((team) => team.id === currentTeam)) elements.customTeam.value = currentTeam;
+
+  const gamePlayers = currentPlayers.filter((player) => teams.some((team) => String(team.id) === String(player.teamId)));
+  const skillPlayers = gamePlayers.filter((player) => ["QB", "RB", "WR", "TE"].includes(player.position));
+  const currentTouchdownPlayer = elements.touchdownPlayer.value;
+  elements.touchdownPlayer.innerHTML = `<option value="">${skillPlayers.length ? "Select a player" : "No players available"}</option>${skillPlayers.map((player) => `<option value="${escapeHtml(player.id)}">${escapeHtml(player.name)} (${escapeHtml(player.position)})</option>`).join("")}`;
+  if (skillPlayers.some((player) => player.id === currentTouchdownPlayer)) elements.touchdownPlayer.value = currentTouchdownPlayer;
+
+  const positions = [...new Set(gamePlayers.map((player) => player.position).filter((position) => propStats[position]))].sort();
+  const currentPosition = elements.customPosition.value;
+  elements.customPosition.innerHTML = `<option value="">Select a position</option>${positions.map((position) => `<option value="${position}">${position}</option>`).join("")}`;
+  if (positions.includes(currentPosition)) elements.customPosition.value = currentPosition;
+
+  const positionPlayers = gamePlayers.filter((player) => player.position === elements.customPosition.value);
+  const currentPlayer = elements.customPlayer.value;
+  elements.customPlayer.innerHTML = `<option value="">${positionPlayers.length ? "Select a player" : "Select a position first"}</option>${positionPlayers.map((player) => `<option value="${escapeHtml(player.id)}">${escapeHtml(player.name)}</option>`).join("")}`;
+  if (positionPlayers.some((player) => player.id === currentPlayer)) elements.customPlayer.value = currentPlayer;
+
+  const stats = propStats[elements.customPosition.value] || [];
+  const currentStat = elements.customStat.value;
+  elements.customStat.innerHTML = stats.map((stat) => `<option value="${stat.value}">${stat.label}</option>`).join("");
+  if (stats.some((stat) => stat.value === currentStat)) elements.customStat.value = currentStat;
+}
+
+async function loadRosters(markets) {
+  const teams = [...new Map(markets.flatMap((market) => market.teams || []).map((team) => [team.id, team])).values()];
+  const rosterResponses = await Promise.all(teams.map((team) => fetch(`${ESPN_ROSTER_BASE}/${team.id}/roster`)));
+  const failedResponse = rosterResponses.find((response) => !response.ok);
+  if (failedResponse) throw new Error(`ESPN roster request returned HTTP ${failedResponse.status}`);
+  const rosters = await Promise.all(rosterResponses.map((response) => response.json()));
+  currentPlayers = rosters.flatMap((roster, index) => (roster.athletes || []).flatMap((group) => group.items || []).map((athlete) => ({
+    id: athlete.id,
+    name: athlete.displayName || athlete.fullName,
+    position: athlete.position?.abbreviation,
+    teamId: teams[index].id
+  }))).filter((player) => player.id && player.name && player.position);
 }
 
 function render(markets) {
   elements.marketCount.textContent = markets.length;
-  currentMarkets = markets;
+  currentMarkets = [...markets, ...customBets];
+  updateCustomGameOptions(markets);
   if (!markets.length) {
     elements.body.innerHTML = `<div class="placeholder-row">No odds are currently available for this NFL week.</div>`;
     renderSelectedMarkets();
@@ -211,6 +350,12 @@ async function loadOdds() {
     if (failedResponse) throw new Error(`ESPN returned HTTP ${failedResponse.status}`);
     const dailyData = await Promise.all(dailyResponses.map((response) => response.json()));
     const markets = normalizeEvents({ events: dailyData.flatMap((data) => data.events || []) });
+    try {
+      await loadRosters(markets);
+    } catch (rosterError) {
+      currentPlayers = [];
+      showAlert(`Player rosters could not be loaded. Standard game bets are still available. ${rosterError.message}`);
+    }
     render(markets);
     elements.updated.textContent = `Updated ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
     elements.dot.classList.add("live");
@@ -227,7 +372,76 @@ async function loadOdds() {
 }
 
 elements.refresh.addEventListener("click", loadOdds);
-elements.clear.addEventListener("click", () => { selectedBets.clear(); persistSelection(); loadOdds(); });
+elements.clear.addEventListener("click", () => {
+  selectedBets.clear();
+  customBets = [];
+  localStorage.removeItem("odds-desk-custom-bets");
+  persistSelection();
+  loadOdds();
+});
+elements.customToggle.addEventListener("click", () => {
+  const isHidden = elements.customForm.hidden;
+  elements.customForm.hidden = !isHidden;
+  elements.customToggle.setAttribute("aria-expanded", String(isHidden));
+  if (isHidden) elements.customGame.focus();
+});
+elements.customType.addEventListener("change", updateCustomFields);
+elements.customGame.addEventListener("change", updateCustomFields);
+elements.customPosition.addEventListener("change", updateCustomFields);
+elements.customForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const sourceGame = currentMarkets.find((market) => market.eventId === elements.customGame.value && !market.isCustom);
+  if (!sourceGame) return;
+  const teams = sourceGame.teams || [];
+  const gamePlayers = currentPlayers.filter((player) => teams.some((team) => String(team.id) === String(player.teamId)));
+  const id = `custom-${Date.now()}`;
+  let customBet;
+  if (elements.customType.value === "Alternate spread") {
+    const team = teams.find((candidate) => candidate.id === elements.customTeam.value);
+    const line = Number(elements.customLine.value);
+    customBet = {
+      id, marketType: "alternate_spread", teamId: team.id, line,
+      type: "Alternate spread", pick: `${team.abbreviation} ${line > 0 ? "+" : ""}${line}`, odds: elements.customOdds.value.trim()
+    };
+  } else if (elements.customType.value === "Alternate total") {
+    const line = Number(elements.customTotalLine.value);
+    const side = elements.customTotalSide.value;
+    customBet = {
+      id, marketType: "alternate_total", side, line,
+      type: "Alternate total", pick: `${side === "over" ? "Over" : "Under"} ${line}`, odds: elements.customOdds.value.trim()
+    };
+  } else if (elements.customType.value === "Anytime touchdown") {
+    const player = gamePlayers.find((candidate) => candidate.id === elements.touchdownPlayer.value);
+    const threshold = Number(elements.touchdownThreshold.value);
+    customBet = {
+      id, marketType: "anytime_touchdown", playerId: player.id, playerName: player.name, threshold,
+      type: "Anytime touchdown", pick: `${player.name} ${threshold}+ TD`, odds: elements.customOdds.value.trim()
+    };
+  } else {
+    const player = gamePlayers.find((candidate) => candidate.id === elements.customPlayer.value);
+    const stat = propStats[elements.customPosition.value].find((candidate) => candidate.value === elements.customStat.value);
+    const line = Number(elements.customPropLine.value);
+    const side = elements.customSide.value;
+    customBet = {
+      id, marketType: "player_prop", playerId: player.id, playerName: player.name,
+      position: elements.customPosition.value, stat: elements.customStat.value, side, line,
+      type: "Player prop", pick: `${player.name} ${side} ${line} ${stat.label}`, odds: elements.customOdds.value.trim()
+    };
+  }
+  customBet.eventId = sourceGame.eventId;
+  customBet.event = sourceGame.event;
+  customBet.shortEvent = sourceGame.shortEvent;
+  customBet.time = sourceGame.time;
+  customBet.isCustom = true;
+  customBets.push(customBet);
+  selectedBets.add(customBet.id);
+  localStorage.setItem("odds-desk-custom-bets", JSON.stringify(customBets));
+  persistSelection();
+  elements.customForm.reset();
+  elements.customForm.hidden = true;
+  elements.customToggle.setAttribute("aria-expanded", "false");
+  render(currentMarkets.filter((market) => !market.isCustom));
+});
 elements.save.addEventListener("click", () => showAlert("Saving to the local API is not enabled yet. Your selections are stored in this browser only."));
 persistSelection();
 loadOdds();
